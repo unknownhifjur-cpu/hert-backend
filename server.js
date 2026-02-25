@@ -11,10 +11,17 @@ const PORT = process.env.PORT || 5000;
 
 // Middleware
 // Configure CORS for production
-app.use(cors({ 
-  origin: process.env.FRONTEND_URL || 'http://localhost:3000',
-  credentials: true 
-}));  
+// Configure CORS to allow the frontend dev origin as well as the configured
+// FRONTEND_URL. This accepts requests with no origin (e.g. server-to-server)
+const allowedOrigins = [process.env.FRONTEND_URL || 'http://localhost:3000', 'http://localhost:5173'];
+app.use(cors({
+  origin: (origin, callback) => {
+    if (!origin) return callback(null, true);
+    if (allowedOrigins.includes(origin)) return callback(null, true);
+    return callback(new Error('CORS policy: origin not allowed'));
+  },
+  credentials: true
+}));
 app.use(express.json());
 
 // Connect to MongoDB

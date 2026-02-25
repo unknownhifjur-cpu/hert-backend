@@ -9,7 +9,16 @@ const User = require('../models/User');
 // @access  Public
 router.post('/register', async (req, res) => {
   try {
+    if (!process.env.JWT_SECRET) {
+      console.error('JWT_SECRET is not set');
+      return res.status(500).json({ error: 'Server configuration error' });
+    }
+
     const { username, email, password } = req.body;
+
+    if (!username || !email || !password) {
+      return res.status(400).json({ error: 'Username, email, and password are required' });
+    }
 
     // Check if user already exists
     let user = await User.findOne({ $or: [{ email }, { username }] });
@@ -35,8 +44,8 @@ router.post('/register', async (req, res) => {
 
     res.status(201).json({ token, user: { id: user.id, username, email } });
   } catch (err) {
-    console.error(err.message);
-    res.status(500).json({ error: 'Server error' });
+    console.error('Register error:', err.message);
+    res.status(500).json({ error: 'Server error', details: err.message });
   }
 });
 
@@ -45,7 +54,16 @@ router.post('/register', async (req, res) => {
 // @access  Public
 router.post('/login', async (req, res) => {
   try {
+    if (!process.env.JWT_SECRET) {
+      console.error('JWT_SECRET is not set');
+      return res.status(500).json({ error: 'Server configuration error' });
+    }
+
     const { email, password } = req.body;
+
+    if (!email || !password) {
+      return res.status(400).json({ error: 'Email and password are required' });
+    }
 
     // Find user by email
     const user = await User.findOne({ email });
@@ -67,8 +85,8 @@ router.post('/login', async (req, res) => {
 
     res.json({ token, user: { id: user.id, username: user.username, email } });
   } catch (err) {
-    console.error(err.message);
-    res.status(500).json({ error: 'Server error' });
+    console.error('Login error:', err.message);
+    res.status(500).json({ error: 'Server error', details: err.message });
   }
 });
 

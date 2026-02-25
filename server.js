@@ -13,7 +13,7 @@ const PORT = process.env.PORT || 5000;
 // Configure CORS for production
 // Configure CORS to allow the frontend dev origin as well as the configured
 // FRONTEND_URL. This accepts requests with no origin (e.g. server-to-server)
-const allowedOrigins = ['https://hert-pi.vercel.app' || 'http://localhost:3000', 'http://localhost:5173'];
+const allowedOrigins = ['https://heartlock.vercel.app' || 'http://localhost:3000', 'http://localhost:5173'];
 app.use(cors({
   origin: (origin, callback) => {
     if (!origin) return callback(null, true);

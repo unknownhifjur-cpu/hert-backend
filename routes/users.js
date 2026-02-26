@@ -4,6 +4,25 @@ const User = require('../models/User');
 const Photo = require('../models/Photo');
 const auth = require('../middleware/auth');
 
+// @route   GET /api/users/search
+// @desc    Search users by username (partial match, case-insensitive)
+// @access  Private
+router.get('/search', auth, async (req, res) => {
+  try {
+    const { q } = req.query;
+    if (!q || q.length < 2) return res.json([]);
+    const users = await User.find({
+      username: { $regex: q, $options: 'i' }
+    })
+      .select('username profilePic')
+      .limit(10);
+    res.json(users);
+  } catch (err) {
+    console.error(err.message);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
 // @route   GET /api/users/:username
 // @desc    Get user profile by username
 // @access  Public

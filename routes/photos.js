@@ -5,8 +5,8 @@ const auth = require('../middleware/auth');
 
 // @route   GET /api/photos/:id
 // @desc    Get a single photo by ID
-// @access  Private
-router.get('/:id', auth, async (req, res) => {
+// @access  Public
+router.get('/:id', async (req, res) => {
   try {
     const photo = await Photo.findById(req.params.id)
       .populate('user', 'username profilePic')
@@ -14,7 +14,11 @@ router.get('/:id', auth, async (req, res) => {
     if (!photo) return res.status(404).json({ error: 'Photo not found' });
     res.json(photo);
   } catch (err) {
-    console.error(err.message);
+    console.error(err);
+    // if the id is not a valid ObjectId, mongoose throws a CastError
+    if (err.name === 'CastError') {
+      return res.status(404).json({ error: 'Photo not found' });
+    }
     res.status(500).json({ error: 'Server error' });
   }
 });
@@ -39,26 +43,14 @@ router.post('/:id/like', auth, async (req, res) => {
     await photo.save();
     res.json({ likes: photo.likes.length, liked: !liked });
   } catch (err) {
-    console.error(err.message);
+    console.error(err);
+    if (err.name === 'CastError') {
+      return res.status(404).json({ error: 'Photo not found' });
+    }
     res.status(500).json({ error: 'Server error' });
   }
 });
 
-// @route   POST /api/photos/:id/comment
-// @desc    Add a comment to a photo
-// @access  Private
-router.get('/:id', async (req, res) => {
-  try {
-    const photo = await Photo.findById(req.params.id)
-      .populate('user', 'username profilePic')
-      .populate('comments.user', 'username profilePic');
-    if (!photo) return res.status(404).json({ error: 'Photo not found' });
-    res.json(photo);
-  } catch (err) {
-    console.error(err.message);
-    res.status(500).json({ error: 'Server error' });
-  }
-});
 
 // @route   POST /api/photos/:id/comment
 // @desc    Add a comment to a photo
@@ -87,7 +79,10 @@ router.post('/:id/comment', auth, async (req, res) => {
     const newComment = photo.comments[photo.comments.length - 1];
     res.json(newComment);
   } catch (err) {
-    console.error(err.message);
+    console.error(err);
+    if (err.name === 'CastError') {
+      return res.status(404).json({ error: 'Photo not found' });
+    }
     res.status(500).json({ error: 'Server error' });
   }
 });
@@ -107,7 +102,10 @@ router.delete('/:id', auth, async (req, res) => {
     await photo.remove();
     res.json({ success: true });
   } catch (err) {
-    console.error(err.message);
+    console.error(err);
+    if (err.name === 'CastError') {
+      return res.status(404).json({ error: 'Photo not found' });
+    }
     res.status(500).json({ error: 'Server error' });
   }
 });

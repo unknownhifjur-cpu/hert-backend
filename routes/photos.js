@@ -47,6 +47,22 @@ router.post('/:id/like', auth, async (req, res) => {
 // @route   POST /api/photos/:id/comment
 // @desc    Add a comment to a photo
 // @access  Private
+router.get('/:id', async (req, res) => {
+  try {
+    const photo = await Photo.findById(req.params.id)
+      .populate('user', 'username profilePic')
+      .populate('comments.user', 'username profilePic');
+    if (!photo) return res.status(404).json({ error: 'Photo not found' });
+    res.json(photo);
+  } catch (err) {
+    console.error(err.message);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// @route   POST /api/photos/:id/comment
+// @desc    Add a comment to a photo
+// @access  Private
 router.post('/:id/comment', auth, async (req, res) => {
   try {
     const { text } = req.body;
@@ -70,6 +86,26 @@ router.post('/:id/comment', auth, async (req, res) => {
     await photo.populate('comments.user', 'username profilePic');
     const newComment = photo.comments[photo.comments.length - 1];
     res.json(newComment);
+  } catch (err) {
+    console.error(err.message);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// @route   DELETE /api/photos/:id
+// @desc    Delete a photo (only owner)
+// @access  Private
+router.delete('/:id', auth, async (req, res) => {
+  try {
+    const photo = await Photo.findById(req.params.id);
+    if (!photo) return res.status(404).json({ error: 'Photo not found' });
+
+    if (photo.user.toString() !== req.userId.toString()) {
+      return res.status(403).json({ error: 'Not authorized' });
+    }
+
+    await photo.remove();
+    res.json({ success: true });
   } catch (err) {
     console.error(err.message);
     res.status(500).json({ error: 'Server error' });

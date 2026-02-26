@@ -10,7 +10,6 @@ const app = express();
 const PORT = process.env.PORT || 5000;
 
 // Middleware
-// Configure CORS – allow your frontend origins
 const allowedOrigins = [
   'https://heartlock.vercel.app',
   'http://localhost:3000',
@@ -60,18 +59,19 @@ const upload = multer({
 
 // Import models and middleware
 const Photo = require('./models/Photo');
+const User = require('./models/User');   // <-- added User model
 const auth = require('./middleware/auth');
 
 // Routes
 app.use('/api/auth', require('./routes/auth'));
-app.use('/api/users', require('./routes/users')); // <-- ADD THIS LINE
+app.use('/api/users', require('./routes/users'));
 
 // Simple test route
 app.get("/", (req, res) => {
   res.send("Server is running!");
 });
 
-// Upload route – protected, associates photo with user
+// Upload route – protected, creates a photo post
 app.post("/api/upload", auth, upload.single("image"), async (req, res) => {
   try {
     if (!req.file) {
@@ -87,7 +87,6 @@ app.post("/api/upload", auth, upload.single("image"), async (req, res) => {
     });
     await newPhoto.save();
 
-    // Populate user info (use profilePic field from User schema)
     await newPhoto.populate('user', 'username profilePic');
 
     res.json({
@@ -100,7 +99,29 @@ app.post("/api/upload", auth, upload.single("image"), async (req, res) => {
   }
 });
 
-// Get all photos (for feed) – populate user info
+// NEW: Profile picture upload – does NOT create a Photo document
+app.post("/api/users/profile-pic", auth, upload.single("profilePic"), async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ error: "No file uploaded" });
+    }
+    const imageUrl = req.file.path; // Cloudinary URL
+
+    const user = await User.findById(req.userId);
+    if (!user) {
+      return res.status(404).json({ error: "User not found" });
+    }
+    user.profilePic = imageUrl;
+    await user.save();
+
+    res.json({ profilePicUrl: imageUrl });
+  } catch (error) {
+    console.error("Profile pic upload error:", error);
+    res.status(500).json({ error: "Upload failed" });
+  }
+});
+
+// Get all photos (for feed)
 app.get("/api/photos", async (req, res) => {
   try {
     const photos = await Photo.find()

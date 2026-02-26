@@ -59,12 +59,13 @@ const upload = multer({
 
 // Import models and middleware
 const Photo = require('./models/Photo');
-const User = require('./models/User');   // <-- added User model
+const User = require('./models/User');
 const auth = require('./middleware/auth');
 
 // Routes
 app.use('/api/auth', require('./routes/auth'));
 app.use('/api/users', require('./routes/users'));
+app.use('/api/photos', require('./routes/photos'));   // <-- NEW
 
 // Simple test route
 app.get("/", (req, res) => {
@@ -99,13 +100,13 @@ app.post("/api/upload", auth, upload.single("image"), async (req, res) => {
   }
 });
 
-// NEW: Profile picture upload – does NOT create a Photo document
+// Profile picture upload – does NOT create a Photo document
 app.post("/api/users/profile-pic", auth, upload.single("profilePic"), async (req, res) => {
   try {
     if (!req.file) {
       return res.status(400).json({ error: "No file uploaded" });
     }
-    const imageUrl = req.file.path; // Cloudinary URL
+    const imageUrl = req.file.path;
 
     const user = await User.findById(req.userId);
     if (!user) {

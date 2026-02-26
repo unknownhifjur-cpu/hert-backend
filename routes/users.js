@@ -18,8 +18,6 @@ router.get('/:username', async (req, res) => {
       return res.status(404).json({ error: 'User not found' });
     }
 
-    // Optional: add counts if you want to send as separate fields
-    // but frontend can use followers.length
     res.json(user);
   } catch (err) {
     console.error(err.message);
@@ -64,21 +62,17 @@ router.post('/:username/follow', auth, async (req, res) => {
       return res.status(404).json({ error: 'Current user not found' });
     }
 
-    // Cannot follow yourself
     if (currentUser.username === req.params.username) {
       return res.status(400).json({ error: 'You cannot follow yourself' });
     }
 
-    // Check if already following
     if (currentUser.following.includes(userToFollow._id)) {
       return res.status(400).json({ error: 'Already following this user' });
     }
 
-    // Add to following array of current user
     currentUser.following.push(userToFollow._id);
     await currentUser.save();
 
-    // Add to followers array of target user
     userToFollow.followers.push(currentUser._id);
     await userToFollow.save();
 
@@ -104,23 +98,19 @@ router.post('/:username/unfollow', auth, async (req, res) => {
       return res.status(404).json({ error: 'Current user not found' });
     }
 
-    // Cannot unfollow yourself
     if (currentUser.username === req.params.username) {
       return res.status(400).json({ error: 'You cannot unfollow yourself' });
     }
 
-    // Check if not following
     if (!currentUser.following.includes(userToUnfollow._id)) {
       return res.status(400).json({ error: 'You are not following this user' });
     }
 
-    // Remove from following array of current user
     currentUser.following = currentUser.following.filter(
       id => id.toString() !== userToUnfollow._id.toString()
     );
     await currentUser.save();
 
-    // Remove from followers array of target user
     userToUnfollow.followers = userToUnfollow.followers.filter(
       id => id.toString() !== currentUser._id.toString()
     );
@@ -129,6 +119,44 @@ router.post('/:username/unfollow', auth, async (req, res) => {
     res.json({ message: 'Unfollowed successfully' });
   } catch (err) {
     console.error(err.message);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// @route   PUT /api/users/:username
+// @desc    Update user profile (bio, profilePic)
+// @access  Private
+router.put('/:username', auth, async (req, res) => {
+  console.log('PUT /api/users/:username called', {
+    params: req.params,
+    body: req.body,
+    userIdFromToken: req.userId
+  });
+
+  try {
+    const user = await User.findOne({ username: req.params.username });
+    if (!user) {
+      console.log('User lookup returned null for', req.params.username);
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    // Ensure the logged-in user owns this profile
+    if (user._id.toString() !== req.userId) {
+      console.log('Unauthorized update attempt', { userId: req.userId, ownerId: user._id });
+      return res.status(403).json({ error: 'Unauthorized' });
+    }
+
+    const { bio, profilePic } = req.body;
+    if (bio !== undefined) user.bio = bio;
+    if (profilePic !== undefined) user.profilePic = profilePic;
+
+    await user.save();
+
+    // Return updated user without password
+    const updatedUser = await User.findById(user._id).select('-password');
+    res.json(updatedUser);
+  } catch (err) {
+    console.error('Error in PUT /users/:username', err);
     res.status(500).json({ error: 'Server error' });
   }
 });

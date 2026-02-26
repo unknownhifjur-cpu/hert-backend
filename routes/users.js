@@ -23,6 +23,36 @@ router.get('/search', auth, async (req, res) => {
   }
 });
 
+// @route   GET /api/users/:username/followers
+// @desc    Get followers of a user
+// @access  Private
+router.get('/:username/followers', auth, async (req, res) => {
+  try {
+    const user = await User.findOne({ username: req.params.username })
+      .populate('followers', 'username profilePic');
+    if (!user) return res.status(404).json({ error: 'User not found' });
+    res.json(user.followers);
+  } catch (err) {
+    console.error(err.message);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// @route   GET /api/users/:username/following
+// @desc    Get following of a user
+// @access  Private
+router.get('/:username/following', auth, async (req, res) => {
+  try {
+    const user = await User.findOne({ username: req.params.username })
+      .populate('following', 'username profilePic');
+    if (!user) return res.status(404).json({ error: 'User not found' });
+    res.json(user.following);
+  } catch (err) {
+    console.error(err.message);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
 // @route   GET /api/users/:username
 // @desc    Get user profile by username
 // @access  Public

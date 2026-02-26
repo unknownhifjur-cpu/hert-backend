@@ -10,10 +10,12 @@ const app = express();
 const PORT = process.env.PORT || 5000;
 
 // Middleware
-// Configure CORS for production
-// Configure CORS to allow the frontend dev origin as well as the configured
-// FRONTEND_URL. This accepts requests with no origin (e.g. server-to-server)
-const allowedOrigins = ['https://heartlock.vercel.app' || 'http://localhost:3000', 'http://localhost:5173'];
+// Configure CORS – allow your frontend origins
+const allowedOrigins = [
+  'https://heartlock.vercel.app',
+  'http://localhost:3000',
+  'http://localhost:5173'
+];
 app.use(cors({
   origin: (origin, callback) => {
     if (!origin) return callback(null, true);
@@ -58,17 +60,18 @@ const upload = multer({
 
 // Import models and middleware
 const Photo = require('./models/Photo');
-const auth = require('./middleware/auth'); // <-- import auth middleware
+const auth = require('./middleware/auth');
 
 // Routes
-app.use('/api/auth', require('./routes/auth')); // <-- auth routes
+app.use('/api/auth', require('./routes/auth'));
+app.use('/api/users', require('./routes/users')); // <-- ADD THIS LINE
 
 // Simple test route
 app.get("/", (req, res) => {
   res.send("Server is running!");
 });
 
-// Upload route – now protected and associates photo with user
+// Upload route – protected, associates photo with user
 app.post("/api/upload", auth, upload.single("image"), async (req, res) => {
   try {
     if (!req.file) {
@@ -77,16 +80,15 @@ app.post("/api/upload", auth, upload.single("image"), async (req, res) => {
     const imageUrl = req.file.path;
     const { caption } = req.body;
 
-    // Create a new photo with the authenticated user's ID
     const newPhoto = new Photo({
-      user: req.userId,      // <-- from auth middleware
+      user: req.userId,
       imageUrl,
       caption
     });
     await newPhoto.save();
 
-    // Populate user info before sending response
-    await newPhoto.populate('user', 'username avatar');
+    // Populate user info (use profilePic field from User schema)
+    await newPhoto.populate('user', 'username profilePic');
 
     res.json({
       success: true,
@@ -98,11 +100,11 @@ app.post("/api/upload", auth, upload.single("image"), async (req, res) => {
   }
 });
 
-// Get all photos (for feed) – now includes user info
+// Get all photos (for feed) – populate user info
 app.get("/api/photos", async (req, res) => {
   try {
     const photos = await Photo.find()
-      .populate('user', 'username avatar')  // show username and avatar
+      .populate('user', 'username profilePic')
       .sort({ createdAt: -1 });
     res.json(photos);
   } catch (error) {
@@ -110,6 +112,7 @@ app.get("/api/photos", async (req, res) => {
     res.status(500).json({ error: "Could not fetch photos" });
   }
 });
+
 // Error handling middleware
 app.use((err, req, res, next) => {
   console.error(err.stack);

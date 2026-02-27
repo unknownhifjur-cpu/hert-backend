@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const Photo = require('../models/Photo');
+const Notification = require('../models/Notification'); // <-- added
 const auth = require('../middleware/auth');
 
 // @route   GET /api/photos/:id
@@ -15,7 +16,6 @@ router.get('/:id', async (req, res) => {
     res.json(photo);
   } catch (err) {
     console.error(err);
-    // if the id is not a valid ObjectId, mongoose throws a CastError
     if (err.name === 'CastError') {
       return res.status(404).json({ error: 'Photo not found' });
     }
@@ -38,6 +38,15 @@ router.post('/:id/like', auth, async (req, res) => {
       photo.likes = photo.likes.filter(id => id.toString() !== userId.toString());
     } else {
       photo.likes.push(userId);
+      // Create notification if the liker is not the owner
+      if (photo.user.toString() !== userId.toString()) {
+        await Notification.create({
+          recipient: photo.user,
+          sender: userId,
+          type: 'like',
+          photo: photo._id
+        });
+      }
     }
 
     await photo.save();
@@ -50,7 +59,6 @@ router.post('/:id/like', auth, async (req, res) => {
     res.status(500).json({ error: 'Server error' });
   }
 });
-
 
 // @route   POST /api/photos/:id/comment
 // @desc    Add a comment to a photo
@@ -77,6 +85,17 @@ router.post('/:id/comment', auth, async (req, res) => {
     // Populate the user info for the new comment
     await photo.populate('comments.user', 'username profilePic');
     const newComment = photo.comments[photo.comments.length - 1];
+
+    // Create notification if the commenter is not the owner
+    if (photo.user.toString() !== req.userId.toString()) {
+      await Notification.create({
+        recipient: photo.user,
+        sender: req.userId,
+        type: 'comment',
+        photo: photo._id
+      });
+    }
+
     res.json(newComment);
   } catch (err) {
     console.error(err);
@@ -99,34 +118,13 @@ router.delete('/:id', auth, async (req, res) => {
       return res.status(403).json({ error: 'Not authorized' });
     }
 
-    await photo.remove();
+    await photo.deleteOne();
     res.json({ success: true });
   } catch (err) {
     console.error(err);
     if (err.name === 'CastError') {
       return res.status(404).json({ error: 'Photo not found' });
     }
-    res.status(500).json({ error: 'Server error' });
-  }
-});
-
-// @route   DELETE /api/photos/:id
-// @desc    Delete a photo (only by owner)
-// @access  Private
-router.delete('/:id', auth, async (req, res) => {
-  try {
-    const photo = await Photo.findById(req.params.id);
-    if (!photo) return res.status(404).json({ error: 'Photo not found' });
-
-    // Ensure the user deleting is the owner
-    if (photo.user.toString() !== req.userId) {
-      return res.status(403).json({ error: 'Unauthorized' });
-    }
-
-    await photo.deleteOne();
-    res.json({ message: 'Photo deleted successfully' });
-  } catch (err) {
-    console.error(err.message);
     res.status(500).json({ error: 'Server error' });
   }
 });

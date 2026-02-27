@@ -67,7 +67,7 @@ app.use('/api/auth', require('./routes/auth'));
 app.use('/api/users', require('./routes/users'));
 app.use('/api/photos', require('./routes/photos'));
 app.use('/api/bond', require('./routes/bond'));
-
+app.use('/api/notifications', require('./routes/notifications'));
 // Simple test route
 app.get("/", (req, res) => {
   res.send("Server is running!");

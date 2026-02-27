@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const User = require('../models/User');
+const Notification = require('../models/Notification'); // <-- added for notifications
 const auth = require('../middleware/auth');
 
 // @route   GET /api/bond/status
@@ -49,6 +50,13 @@ router.post('/request/:username', auth, async (req, res) => {
     await currentUser.save();
     await target.save();
 
+    // Create notification for the target user
+    await Notification.create({
+      recipient: target._id,
+      sender: currentUser._id,
+      type: 'bond_request'
+    });
+
     res.json({ message: 'Love request sent' });
   } catch (err) {
     console.error(err);
@@ -85,6 +93,18 @@ router.post('/accept/:userId', auth, async (req, res) => {
     await currentUser.save();
     await requester.save();
 
+    // Create notifications for both users
+    await Notification.create({
+      recipient: requester._id,
+      sender: currentUser._id,
+      type: 'bond_accept'
+    });
+    await Notification.create({
+      recipient: currentUser._id,
+      sender: requester._id,
+      type: 'bond_accept'
+    });
+
     res.json({ message: 'Bond created', partner: requester.username });
   } catch (err) {
     console.error(err);
@@ -113,6 +133,9 @@ router.post('/reject/:userId', auth, async (req, res) => {
 
     await currentUser.save();
     await requester.save();
+
+    // Optionally create a notification for rejection (could be added if desired)
+    // For now, we skip it
 
     res.json({ message: 'Request rejected' });
   } catch (err) {

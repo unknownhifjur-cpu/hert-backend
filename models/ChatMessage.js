@@ -20,10 +20,14 @@ const ChatMessageSchema = new mongoose.Schema({
     type: Boolean,
     default: false
   },
+  edited: {
+    type: Boolean,
+    default: false
+  },
   createdAt: {
     type: Date,
     default: Date.now,
-    index: { expires: '24h' } // TTL index: auto‑delete after 24 hours
+    index: { expires: '24h' } // Auto‑delete after 24 hours
   }
 });
 

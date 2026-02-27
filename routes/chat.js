@@ -45,7 +45,9 @@ router.post('/', auth, async (req, res) => {
     const newMessage = new ChatMessage({
       sender: req.userId,
       receiver: receiverId,
-      message: message.trim()
+      message: message.trim(),
+      read: false,
+      edited: false
     });
 
     await newMessage.save();
@@ -100,6 +102,80 @@ router.put('/read/:senderId', auth, async (req, res) => {
       { sender: req.params.senderId, receiver: req.userId, read: false },
       { $set: { read: true } }
     );
+    res.json({ success: true });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// @route   PUT /api/chat/:messageId
+// @desc    Edit a message (only by sender, within 5 minutes)
+// @access  Private
+router.put('/:messageId', auth, async (req, res) => {
+  try {
+    const { message } = req.body;
+    if (!message || message.trim() === '') {
+      return res.status(400).json({ error: 'Message cannot be empty' });
+    }
+
+    const msg = await ChatMessage.findById(req.params.messageId);
+    if (!msg) return res.status(404).json({ error: 'Message not found' });
+
+    if (msg.sender.toString() !== req.userId) {
+      return res.status(403).json({ error: 'Not authorized' });
+    }
+
+    // Optional: restrict editing to within 5 minutes
+    const now = new Date();
+    const msgTime = new Date(msg.createdAt);
+    const diffMinutes = (now - msgTime) / (1000 * 60);
+    if (diffMinutes > 5) {
+      return res.status(400).json({ error: 'Cannot edit messages older than 5 minutes' });
+    }
+
+    msg.message = message.trim();
+    msg.edited = true;
+    await msg.save();
+
+    res.json(msg);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// @route   DELETE /api/chat/:messageId
+// @desc    Unsend/delete a message (only by sender)
+// @access  Private
+router.delete('/:messageId', auth, async (req, res) => {
+  try {
+    const msg = await ChatMessage.findById(req.params.messageId);
+    if (!msg) return res.status(404).json({ error: 'Message not found' });
+
+    if (msg.sender.toString() !== req.userId) {
+      return res.status(403).json({ error: 'Not authorized' });
+    }
+
+    await msg.deleteOne();
+    res.json({ success: true });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// @route   DELETE /api/chat/conversation/:userId
+// @desc    Delete entire conversation with another user
+// @access  Private
+router.delete('/conversation/:userId', auth, async (req, res) => {
+  try {
+    await ChatMessage.deleteMany({
+      $or: [
+        { sender: req.userId, receiver: req.params.userId },
+        { sender: req.params.userId, receiver: req.userId }
+      ]
+    });
     res.json({ success: true });
   } catch (err) {
     console.error(err);

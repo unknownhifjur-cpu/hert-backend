@@ -59,7 +59,7 @@ router.post('/', auth, async (req, res) => {
   }
 });
 
-// @route   GET /api/chat/conversations
+// @route   GET /api/chat/conversations/list
 // @desc    Get list of users the current user has chatted with (latest message)
 // @access  Private
 router.get('/conversations/list', auth, async (req, res) => {
@@ -71,7 +71,6 @@ router.get('/conversations/list', auth, async (req, res) => {
       .populate('sender', 'username profilePic')
       .populate('receiver', 'username profilePic');
 
-    // Build unique contacts with last message
     const contactsMap = new Map();
     messages.forEach(msg => {
       const otherUser = msg.sender._id.toString() === req.userId ? msg.receiver : msg.sender;

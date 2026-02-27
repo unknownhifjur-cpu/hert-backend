@@ -15,6 +15,7 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "@google/generative-ai": "^0.24.1",
     "bcryptjs": "^3.0.3",
     "cloudinary": "^1.41.3",
     "cors": "^2.8.6",
@@ -23,7 +24,8 @@
     "jsonwebtoken": "^9.0.3",
     "mongoose": "^9.2.2",
     "multer": "^2.0.2",
-    "multer-storage-cloudinary": "^4.0.0"
+    "multer-storage-cloudinary": "^4.0.0",
+    "openai": "^6.25.0"
   },
   "devDependencies": {
     "nodemon": "^3.1.14"

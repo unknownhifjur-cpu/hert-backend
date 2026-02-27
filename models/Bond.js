@@ -11,7 +11,7 @@ const BondSchema = new mongoose.Schema({
   }],
   bondData: {
     type: mongoose.Schema.Types.Mixed,
-    default: () => ({  // <-- use a function to return a fresh object
+    default: () => ({
       anniversary: '',
       startDate: '',
       bondStatus: 'Strong',

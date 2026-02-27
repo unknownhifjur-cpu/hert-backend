@@ -6,6 +6,9 @@ const Bond = require('../models/Bond');
 const Notification = require('../models/Notification');
 const auth = require('../middleware/auth');
 
+// Test route – must be AFTER router declaration
+router.get('/ping', (req, res) => res.json({ ping: 'ok' }));
+
 // @route   GET /api/bond/status
 // @desc    Get current user's bond status
 // @access  Private
@@ -52,7 +55,6 @@ router.post('/request/:username', auth, async (req, res) => {
     await currentUser.save();
     await target.save();
 
-    // Create notification
     await Notification.create({
       recipient: target._id,
       sender: currentUser._id,
@@ -78,7 +80,6 @@ router.post('/accept/:userId', auth, async (req, res) => {
     if (!currentUser.receivedRequests.includes(requester._id))
       return res.status(400).json({ error: 'No request from this user' });
 
-    // Update both users' relationship status
     currentUser.relationshipStatus = 'bonded';
     currentUser.partnerId = requester._id;
     currentUser.bondStartDate = new Date();
@@ -96,11 +97,9 @@ router.post('/accept/:userId', auth, async (req, res) => {
     await currentUser.save();
     await requester.save();
 
-    // Create a shared Bond document
     const bond = new Bond({
-      users: [currentUser._id, requester._id].sort(), // keep sorted
+      users: [currentUser._id, requester._id].sort(),
       bondData: {
-        // Initialise with some default values
         anniversary: currentUser.bondStartDate?.toISOString().split('T')[0] || '',
         startDate: currentUser.bondStartDate?.toISOString().split('T')[0] || '',
         bondStatus: 'Strong',
@@ -117,7 +116,6 @@ router.post('/accept/:userId', auth, async (req, res) => {
     });
     await bond.save();
 
-    // Notifications
     await Notification.create({
       recipient: requester._id,
       sender: currentUser._id,
@@ -206,7 +204,6 @@ router.put('/shared', auth, async (req, res) => {
 
     if (!bond) return res.status(404).json({ error: 'Bond not found' });
 
-    // Merge updates into bondData
     bond.bondData = { ...bond.bondData, ...req.body };
     await bond.save();
 

@@ -59,10 +59,10 @@ const UserSchema = new mongoose.Schema({
     type: Date,
     default: null
   },
-  // Bond page data (custom relationship details)
+  // Bond page data (custom relationship details) – now with a function to ensure fresh copy
   bondData: {
     type: mongoose.Schema.Types.Mixed,
-    default: {
+    default: () => ({
       partnerName: '',
       anniversary: '',
       startDate: '',
@@ -76,7 +76,7 @@ const UserSchema = new mongoose.Schema({
       commitments: [],
       recentMood: 'happy',
       interactions: 0,
-    }
+    })
   }
 }, { timestamps: true });
 

@@ -121,7 +121,7 @@ router.post('/reject/:userId', auth, async (req, res) => {
   }
 });
 
-// ========== NEW ENDPOINTS FOR BOND DATA ==========
+// ========== BOND DATA ENDPOINTS ==========
 
 // @route   GET /api/bond/data
 // @desc    Get current user's bond data

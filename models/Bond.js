@@ -1,5 +1,7 @@
 const mongoose = require('mongoose');
 
+const arrayLimit = (val) => val.length === 2;
+
 const BondSchema = new mongoose.Schema({
   users: [{
     type: mongoose.Schema.Types.ObjectId,
@@ -9,7 +11,7 @@ const BondSchema = new mongoose.Schema({
   }],
   bondData: {
     type: mongoose.Schema.Types.Mixed,
-    default: {
+    default: () => ({  // <-- use a function to return a fresh object
       anniversary: '',
       startDate: '',
       bondStatus: 'Strong',
@@ -22,12 +24,8 @@ const BondSchema = new mongoose.Schema({
       commitments: [],
       recentMood: 'happy',
       interactions: 0,
-    }
+    })
   }
 }, { timestamps: true });
-
-function arrayLimit(val) {
-  return val.length === 2;
-}
 
 module.exports = mongoose.model('Bond', BondSchema);

@@ -65,7 +65,8 @@ const auth = require('./middleware/auth');
 // Routes
 app.use('/api/auth', require('./routes/auth'));
 app.use('/api/users', require('./routes/users'));
-app.use('/api/photos', require('./routes/photos'));   // <-- NEW
+app.use('/api/photos', require('./routes/photos'));
+app.use('/api/bond', require('./routes/bond'));   // <-- NEW Bond routes
 
 // Simple test route
 app.get("/", (req, res) => {

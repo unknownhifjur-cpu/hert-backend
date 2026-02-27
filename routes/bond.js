@@ -121,4 +121,39 @@ router.post('/reject/:userId', auth, async (req, res) => {
   }
 });
 
+// ========== BOND DATA ENDPOINTS ==========
+
+// @route   GET /api/bond/data
+// @desc    Get current user's bond data
+// @access  Private
+router.get('/data', auth, async (req, res) => {
+  try {
+    const user = await User.findById(req.userId).select('bondData');
+    if (!user) return res.status(404).json({ error: 'User not found' });
+    res.json(user.bondData || {});
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// @route   PUT /api/bond/data
+// @desc    Update current user's bond data
+// @access  Private
+router.put('/data', auth, async (req, res) => {
+  try {
+    const user = await User.findById(req.userId);
+    if (!user) return res.status(404).json({ error: 'User not found' });
+
+    // Merge the existing bondData with the incoming updates
+    user.bondData = { ...user.bondData, ...req.body };
+    await user.save();
+
+    res.json(user.bondData);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
 module.exports = router;

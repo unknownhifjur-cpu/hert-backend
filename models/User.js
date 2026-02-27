@@ -36,7 +36,7 @@ const UserSchema = new mongoose.Schema({
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User'
   }],
-  // Bond / relationship fields
+  // Bond / relationship fields (for love requests)
   relationshipStatus: {
     type: String,
     enum: ['single', 'pending', 'bonded'],
@@ -58,6 +58,25 @@ const UserSchema = new mongoose.Schema({
   bondStartDate: {
     type: Date,
     default: null
+  },
+  // Bond page data (custom relationship details)
+  bondData: {
+    type: mongoose.Schema.Types.Mixed,
+    default: {
+      partnerName: '',
+      anniversary: '',
+      startDate: '',
+      bondStatus: 'Strong',
+      connectionStrength: 0,
+      sharedPhotos: 0,
+      savedNotes: 0,
+      memories: [],
+      diaryEntries: [],
+      goals: [],
+      commitments: [],
+      recentMood: 'happy',
+      interactions: 0,
+    }
   }
 }, { timestamps: true });
 

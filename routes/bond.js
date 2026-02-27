@@ -188,7 +188,7 @@ router.get('/shared', auth, async (req, res) => {
     res.status(500).json({ error: 'Server error' });
   }
 });
-
+console.log('Bond routes loaded');
 // @route   PUT /api/bond/shared
 // @desc    Update the shared bond data
 // @access  Private

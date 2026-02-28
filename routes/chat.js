@@ -104,10 +104,20 @@ router.get('/conversations/list', auth, async (req, res) => {
 // @access  Private
 router.put('/read/:senderId', auth, async (req, res) => {
   try {
-    await ChatMessage.updateMany(
+    const result = await ChatMessage.updateMany(
       { sender: req.params.senderId, receiver: req.userId, read: false },
       { $set: { read: true } }
     );
+
+    // If any messages were updated, notify the sender via socket
+    if (result.modifiedCount > 0) {
+      const io = req.app.get('socketio');
+      io.to(req.params.senderId).emit('messages-read', {
+        readerId: req.userId,
+        count: result.modifiedCount
+      });
+    }
+
     res.json({ success: true });
   } catch (err) {
     console.error(err);

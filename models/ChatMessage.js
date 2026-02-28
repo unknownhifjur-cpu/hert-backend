@@ -21,9 +21,21 @@ const ChatMessageSchema = new mongoose.Schema({
     ref: 'ChatMessage',
     default: null
   },
+  delivered: {
+    type: Boolean,
+    default: false
+  },
+  deliveredAt: {
+    type: Date,
+    default: null
+  },
   read: {
     type: Boolean,
     default: false
+  },
+  readAt: {
+    type: Date,
+    default: null
   },
   edited: {
     type: Boolean,

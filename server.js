@@ -20,6 +20,9 @@ const io = socketIo(server, {
 
 const PORT = process.env.PORT || 5000;
 
+// Track online users
+const onlineUsers = new Set();
+
 // Middleware
 const allowedOrigins = [
   'https://heartlock.vercel.app',
@@ -71,9 +74,12 @@ const upload = multer({
 // Import models and middleware
 const Photo = require('./models/Photo');
 const User = require('./models/User');
-const ChatMessage = require('./models/ChatMessage');   // <-- corrected model name
+const ChatMessage = require('./models/ChatMessage');
 const auth = require('./middleware/auth');
 const jwt = require('jsonwebtoken');
+
+// Make io accessible to routes
+app.set('socketio', io);
 
 // ========== Socket.io Authentication & Events ==========
 io.use((socket, next) => {
@@ -90,6 +96,10 @@ io.use((socket, next) => {
 
 io.on('connection', (socket) => {
   console.log('🔌 New socket connected:', socket.userId);
+
+  // Add to online users and broadcast
+  onlineUsers.add(socket.userId);
+  io.emit('user-online', socket.userId);
 
   // Join a room named after the user's own ID
   socket.join(socket.userId);
@@ -138,6 +148,9 @@ io.on('connection', (socket) => {
 
   socket.on('disconnect', () => {
     console.log('❌ Socket disconnected:', socket.userId);
+    // Remove from online users and broadcast
+    onlineUsers.delete(socket.userId);
+    io.emit('user-offline', socket.userId);
   });
 });
 // =======================================================

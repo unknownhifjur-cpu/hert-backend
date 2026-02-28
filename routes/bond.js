@@ -1,7 +1,8 @@
 const express = require('express');
 const router = express.Router();
 const User = require('../models/User');
-const Notification = require('../models/Notification'); // <-- added for notifications
+const Bond = require('../models/Bond');          // <-- added shared Bond model
+const Notification = require('../models/Notification');
 const auth = require('../middleware/auth');
 
 // @route   GET /api/bond/status
@@ -13,13 +14,18 @@ router.get('/status', auth, async (req, res) => {
       .populate('partnerId', 'username profilePic')
       .populate('sentRequests', 'username profilePic')
       .populate('receivedRequests', 'username profilePic');
-    res.json({
+    const response = {
       status: user.relationshipStatus,
       partner: user.partnerId,
       sentRequests: user.sentRequests,
       receivedRequests: user.receivedRequests,
       bondStartDate: user.bondStartDate
-    });
+    };
+    // If bonded, also return bondId so frontend can fetch shared data
+    if (user.relationshipStatus === 'bonded' && user.bondId) {
+      response.bondId = user.bondId;
+    }
+    res.json(response);
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Server error' });
@@ -50,7 +56,6 @@ router.post('/request/:username', auth, async (req, res) => {
     await currentUser.save();
     await target.save();
 
-    // Create notification for the target user
     await Notification.create({
       recipient: target._id,
       sender: currentUser._id,
@@ -65,7 +70,7 @@ router.post('/request/:username', auth, async (req, res) => {
 });
 
 // @route   POST /api/bond/accept/:userId
-// @desc    Accept a love request
+// @desc    Accept a love request and create shared bond
 // @access  Private
 router.post('/accept/:userId', auth, async (req, res) => {
   try {
@@ -76,6 +81,7 @@ router.post('/accept/:userId', auth, async (req, res) => {
     if (!currentUser.receivedRequests.includes(requester._id))
       return res.status(400).json({ error: 'No request from this user' });
 
+    // Update both users' relationship status
     currentUser.relationshipStatus = 'bonded';
     currentUser.partnerId = requester._id;
     currentUser.bondStartDate = new Date();
@@ -89,6 +95,21 @@ router.post('/accept/:userId', auth, async (req, res) => {
     requester.sentRequests = requester.sentRequests.filter(
       id => id.toString() !== currentUser._id.toString()
     );
+
+    // Create a shared Bond document
+    const bond = new Bond({
+      users: [currentUser._id, requester._id],
+      bondData: {
+        startDate: new Date().toISOString().split('T')[0], // store as YYYY-MM-DD
+        bondStatus: 'Strong',
+        // other fields default to empty values
+      }
+    });
+    await bond.save();
+
+    // Store bondId in both users
+    currentUser.bondId = bond._id;
+    requester.bondId = bond._id;
 
     await currentUser.save();
     await requester.save();
@@ -134,9 +155,6 @@ router.post('/reject/:userId', auth, async (req, res) => {
     await currentUser.save();
     await requester.save();
 
-    // Optionally create a notification for rejection (could be added if desired)
-    // For now, we skip it
-
     res.json({ message: 'Request rejected' });
   } catch (err) {
     console.error(err);
@@ -144,10 +162,54 @@ router.post('/reject/:userId', auth, async (req, res) => {
   }
 });
 
-// ========== BOND DATA ENDPOINTS ==========
+// ========== SHARED BOND DATA ENDPOINTS ==========
+
+// @route   GET /api/bond/shared
+// @desc    Get shared bond data (for bonded couples)
+// @access  Private
+router.get('/shared', auth, async (req, res) => {
+  try {
+    const user = await User.findById(req.userId).populate('bondId');
+    if (!user || !user.bondId) {
+      return res.status(404).json({ error: 'No shared bond found' });
+    }
+    // The bondId is populated, so we can return its bondData directly
+    res.json(user.bondId.bondData);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// @route   PUT /api/bond/shared
+// @desc    Update shared bond data
+// @access  Private
+router.put('/shared', auth, async (req, res) => {
+  try {
+    const user = await User.findById(req.userId);
+    if (!user || !user.bondId) {
+      return res.status(404).json({ error: 'No shared bond found' });
+    }
+
+    const bond = await Bond.findById(user.bondId);
+    if (!bond) return res.status(404).json({ error: 'Bond not found' });
+
+    // Merge the existing bondData with the incoming updates
+    bond.bondData = { ...bond.bondData, ...req.body };
+    // Optionally update a timestamp inside bondData if needed, but the document's updatedAt will change automatically
+    await bond.save();
+
+    res.json(bond.bondData);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// ========== LEGACY PER‑USER BOND DATA ENDPOINTS (kept for compatibility) ==========
 
 // @route   GET /api/bond/data
-// @desc    Get current user's bond data
+// @desc    Get current user's individual bond data (legacy)
 // @access  Private
 router.get('/data', auth, async (req, res) => {
   try {
@@ -161,14 +223,13 @@ router.get('/data', auth, async (req, res) => {
 });
 
 // @route   PUT /api/bond/data
-// @desc    Update current user's bond data
+// @desc    Update current user's individual bond data (legacy)
 // @access  Private
 router.put('/data', auth, async (req, res) => {
   try {
     const user = await User.findById(req.userId);
     if (!user) return res.status(404).json({ error: 'User not found' });
 
-    // Merge the existing bondData with the incoming updates
     user.bondData = { ...user.bondData, ...req.body };
     await user.save();
 

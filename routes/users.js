@@ -28,11 +28,11 @@ router.get('/suggestions', auth, async (req, res) => {
   try {
     const currentUserId = req.user.id;
 
-    // Use aggregation to get random users, projecting only needed fields
+    // Use aggregation to get random users
     const suggestions = await User.aggregate([
       { $match: { _id: { $ne: currentUserId } } },
       { $sample: { size: 10 } },
-      { $project: { username: 1, profilePic: 1 } } // removed fullName – doesn't exist in schema
+      { $project: { username: 1, fullName: 1, profilePic: 1 } }
     ]);
 
     res.json(suggestions);
@@ -151,7 +151,7 @@ router.post('/:username/unfollow', auth, async (req, res) => {
 });
 
 // @route   PUT /api/users/:username
-// @desc    Update user profile (bio, profilePic)
+// @desc    Update user profile (bio, profilePic, fullName, etc.)
 // @access  Private
 router.put('/:username', auth, async (req, res) => {
   try {
@@ -161,9 +161,10 @@ router.put('/:username', auth, async (req, res) => {
       return res.status(403).json({ error: 'You can only update your own profile' });
     }
 
-    const { bio, profilePic } = req.body; // removed fullName – not in schema
+    const { fullName, bio, profilePic } = req.body;
 
     // Update fields if provided
+    if (fullName !== undefined) user.fullName = fullName;
     if (bio !== undefined) user.bio = bio;
     if (profilePic !== undefined) user.profilePic = profilePic;
 

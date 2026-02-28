@@ -16,6 +16,11 @@ const ChatMessageSchema = new mongoose.Schema({
     required: true,
     trim: true
   },
+  replyTo: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'ChatMessage',
+    default: null
+  },
   read: {
     type: Boolean,
     default: false

@@ -1,4 +1,6 @@
 const express = require("express");
+const http = require("http");
+const socketIo = require("socket.io");
 const multer = require("multer");
 const cloudinary = require("cloudinary").v2;
 const { CloudinaryStorage } = require("multer-storage-cloudinary");
@@ -7,6 +9,15 @@ const cors = require('cors');
 require('dotenv').config();
 
 const app = express();
+const server = http.createServer(app);
+const io = socketIo(server, {
+  cors: {
+    origin: ['https://heartlock.vercel.app', 'http://localhost:3000', 'http://localhost:5173'],
+    methods: ["GET", "POST"],
+    credentials: true
+  }
+});
+
 const PORT = process.env.PORT || 5000;
 
 // Middleware
@@ -60,7 +71,76 @@ const upload = multer({
 // Import models and middleware
 const Photo = require('./models/Photo');
 const User = require('./models/User');
+const ChatMessage = require('./models/ChatMessage');   // <-- corrected model name
 const auth = require('./middleware/auth');
+const jwt = require('jsonwebtoken');
+
+// ========== Socket.io Authentication & Events ==========
+io.use((socket, next) => {
+  const token = socket.handshake.auth.token;
+  if (!token) {
+    return next(new Error('Authentication error: no token'));
+  }
+  jwt.verify(token, process.env.JWT_SECRET, (err, decoded) => {
+    if (err) return next(new Error('Invalid token'));
+    socket.userId = decoded.userId;
+    next();
+  });
+});
+
+io.on('connection', (socket) => {
+  console.log('🔌 New socket connected:', socket.userId);
+
+  // Join a room named after the user's own ID
+  socket.join(socket.userId);
+
+  // Join a conversation room (room name = sorted pair of user IDs)
+  socket.on('join-conversation', ({ partnerId }) => {
+    const room = [socket.userId, partnerId].sort().join('-');
+    socket.join(room);
+    console.log(`User ${socket.userId} joined room ${room}`);
+  });
+
+  // Handle sending a message
+  socket.on('send-message', async (data) => {
+    try {
+      const { receiverId, message, replyTo } = data;
+      const room = [socket.userId, receiverId].sort().join('-');
+
+      // Save message to database
+      const newMessage = new ChatMessage({
+        sender: socket.userId,
+        receiver: receiverId,
+        message,
+        replyTo: replyTo || null,
+        createdAt: new Date()
+      });
+      await newMessage.save();
+
+      // Populate sender, receiver, and replyTo for the client
+      await newMessage.populate('sender', 'username profilePic');
+      await newMessage.populate('receiver', 'username profilePic');
+      if (newMessage.replyTo) {
+        await newMessage.populate('replyTo', 'message sender');
+      }
+
+      // Emit to the conversation room
+      io.to(room).emit('new-message', newMessage);
+    } catch (err) {
+      console.error('Socket send error:', err);
+    }
+  });
+
+  // Handle typing indicator
+  socket.on('typing', ({ partnerId, isTyping }) => {
+    socket.to(partnerId).emit('user-typing', { userId: socket.userId, isTyping });
+  });
+
+  socket.on('disconnect', () => {
+    console.log('❌ Socket disconnected:', socket.userId);
+  });
+});
+// =======================================================
 
 // Routes
 app.use('/api/auth', require('./routes/auth'));
@@ -69,6 +149,7 @@ app.use('/api/photos', require('./routes/photos'));
 app.use('/api/bond', require('./routes/bond'));
 app.use('/api/notifications', require('./routes/notifications'));
 app.use('/api/chat', require('./routes/chat'));
+
 // Simple test route
 app.get("/", (req, res) => {
   res.send("Server is running!");
@@ -144,6 +225,6 @@ app.use((err, req, res, next) => {
 });
 
 // Start server
-app.listen(PORT, () => {
-  console.log(`Server is running on http://localhost:${PORT}`);
+server.listen(PORT, () => {
+  console.log(`🚀 Server is running on http://localhost:${PORT}`);
 });

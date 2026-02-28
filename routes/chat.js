@@ -20,7 +20,8 @@ router.get('/:userId', auth, async (req, res) => {
     })
       .sort({ createdAt: 1 })
       .populate('sender', 'username profilePic')
-      .populate('receiver', 'username profilePic');
+      .populate('receiver', 'username profilePic')
+      .populate('replyTo', 'message sender'); // populate the replied-to message
 
     res.json(messages);
   } catch (err) {
@@ -30,11 +31,11 @@ router.get('/:userId', auth, async (req, res) => {
 });
 
 // @route   POST /api/chat
-// @desc    Send a message
+// @desc    Send a message (fallback if socket fails)
 // @access  Private
 router.post('/', auth, async (req, res) => {
   try {
-    const { receiverId, message } = req.body;
+    const { receiverId, message, replyTo } = req.body;
     if (!receiverId || !message || message.trim() === '') {
       return res.status(400).json({ error: 'Receiver and message are required' });
     }
@@ -46,6 +47,7 @@ router.post('/', auth, async (req, res) => {
       sender: req.userId,
       receiver: receiverId,
       message: message.trim(),
+      replyTo: replyTo || null,
       read: false,
       edited: false
     });
@@ -53,6 +55,9 @@ router.post('/', auth, async (req, res) => {
     await newMessage.save();
     await newMessage.populate('sender', 'username profilePic');
     await newMessage.populate('receiver', 'username profilePic');
+    if (newMessage.replyTo) {
+      await newMessage.populate('replyTo', 'message sender');
+    }
 
     res.json(newMessage);
   } catch (err) {
@@ -76,8 +81,9 @@ router.get('/conversations/list', auth, async (req, res) => {
     const contactsMap = new Map();
     messages.forEach(msg => {
       const otherUser = msg.sender._id.toString() === req.userId ? msg.receiver : msg.sender;
-      if (!contactsMap.has(otherUser._id.toString())) {
-        contactsMap.set(otherUser._id.toString(), {
+      const key = otherUser._id.toString();
+      if (!contactsMap.has(key)) {
+        contactsMap.set(key, {
           user: otherUser,
           lastMessage: msg.message,
           lastTime: msg.createdAt,

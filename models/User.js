@@ -36,6 +36,11 @@ const UserSchema = new mongoose.Schema({
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User'
   }],
+  // Add savedPhotos array for bookmarked photos
+  savedPhotos: [{
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Photo'
+  }],
   // Bond / relationship fields (for love requests)
   relationshipStatus: {
     type: String,

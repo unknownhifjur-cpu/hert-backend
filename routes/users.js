@@ -58,6 +58,36 @@ router.get('/:username/photos', async (req, res) => {
   }
 });
 
+// @route   GET /api/users/:username/followers
+// @desc    Get list of followers for a user
+// @access  Public
+router.get('/:username/followers', async (req, res) => {
+  try {
+    const user = await User.findOne({ username: req.params.username })
+      .populate('followers', 'username profilePic');
+    if (!user) return res.status(404).json({ error: 'User not found' });
+    res.json(user.followers);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// @route   GET /api/users/:username/following
+// @desc    Get list of following for a user
+// @access  Public
+router.get('/:username/following', async (req, res) => {
+  try {
+    const user = await User.findOne({ username: req.params.username })
+      .populate('following', 'username profilePic');
+    if (!user) return res.status(404).json({ error: 'User not found' });
+    res.json(user.following);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
 // @route   POST /api/users/:username/follow
 // @desc    Follow a user
 // @access  Private
@@ -66,7 +96,7 @@ router.post('/:username/follow', auth, async (req, res) => {
     const userToFollow = await User.findOne({ username: req.params.username });
     if (!userToFollow) return res.status(404).json({ error: 'User not found' });
 
-    const currentUser = await User.findById(req.userId); // changed from req.user.id
+    const currentUser = await User.findById(req.userId);
     if (!currentUser) return res.status(404).json({ error: 'Current user not found' });
 
     if (currentUser.following.includes(userToFollow._id)) {
@@ -100,7 +130,7 @@ router.post('/:username/unfollow', auth, async (req, res) => {
     const userToUnfollow = await User.findOne({ username: req.params.username });
     if (!userToUnfollow) return res.status(404).json({ error: 'User not found' });
 
-    const currentUser = await User.findById(req.userId); // changed from req.user.id
+    const currentUser = await User.findById(req.userId);
     if (!currentUser) return res.status(404).json({ error: 'Current user not found' });
 
     if (!currentUser.following.includes(userToUnfollow._id)) {
@@ -131,7 +161,7 @@ router.put('/:username', auth, async (req, res) => {
   try {
     const { bio, profilePic } = req.body;
 
-    const user = await User.findById(req.userId); // changed from req.user.id
+    const user = await User.findById(req.userId);
     if (!user) return res.status(404).json({ error: 'User not found' });
 
     if (user.username !== req.params.username) {

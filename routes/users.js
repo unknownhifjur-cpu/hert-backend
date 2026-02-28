@@ -5,6 +5,23 @@ const Photo = require('../models/Photo');
 const Notification = require('../models/Notification'); // for follow notifications
 const auth = require('../middleware/auth');
 
+// @route   GET /api/users/id/:userId
+// @desc    Get user by ID
+// @access  Public
+router.get('/id/:userId', async (req, res) => {
+  try {
+    const user = await User.findById(req.params.userId).select('-password');
+    if (!user) return res.status(404).json({ error: 'User not found' });
+    res.json(user);
+  } catch (err) {
+    console.error(err);
+    if (err.kind === 'ObjectId') {
+      return res.status(404).json({ error: 'User not found' });
+    }
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
 // @route   GET /api/users/search
 // @desc    Search users by username
 // @access  Private

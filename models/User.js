@@ -59,7 +59,13 @@ const UserSchema = new mongoose.Schema({
     type: Date,
     default: null
   },
-  // Bond page data (custom relationship details) – now with a function to ensure fresh copy
+  // Reference to the shared Bond document
+  bondId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Bond',
+    default: null
+  },
+  // Legacy bond data (per user) – kept for compatibility but not used in new system
   bondData: {
     type: mongoose.Schema.Types.Mixed,
     default: () => ({

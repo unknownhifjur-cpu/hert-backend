@@ -125,6 +125,22 @@ router.put('/read/:senderId', auth, async (req, res) => {
   }
 });
 
+// @route   GET /api/chat/unread
+// @desc    Get total number of unread messages for current user
+// @access  Private
+router.get('/unread', auth, async (req, res) => {
+  try {
+    const count = await ChatMessage.countDocuments({
+      receiver: req.userId,
+      read: false
+    });
+    res.json({ count });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
 // @route   PUT /api/chat/:messageId
 // @desc    Edit a message (only by sender, within 5 minutes)
 // @access  Private

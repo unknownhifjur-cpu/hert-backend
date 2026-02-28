@@ -69,19 +69,16 @@ router.post('/:username/follow', auth, async (req, res) => {
     const currentUser = await User.findById(req.user.id);
     if (!currentUser) return res.status(404).json({ error: 'Current user not found' });
 
-    // Check if already following
     if (currentUser.following.includes(userToFollow._id)) {
       return res.status(400).json({ error: 'Already following this user' });
     }
 
-    // Update both users
     currentUser.following.push(userToFollow._id);
     userToFollow.followers.push(currentUser._id);
 
     await currentUser.save();
     await userToFollow.save();
 
-    // Create a notification for the followed user
     await Notification.create({
       recipient: userToFollow._id,
       sender: currentUser._id,
@@ -106,16 +103,13 @@ router.post('/:username/unfollow', auth, async (req, res) => {
     const currentUser = await User.findById(req.user.id);
     if (!currentUser) return res.status(404).json({ error: 'Current user not found' });
 
-    // Check if actually following
     if (!currentUser.following.includes(userToUnfollow._id)) {
       return res.status(400).json({ error: 'Not following this user' });
     }
 
-    // Remove from following array
     currentUser.following = currentUser.following.filter(
       id => id.toString() !== userToUnfollow._id.toString()
     );
-    // Remove from followers array of the target user
     userToUnfollow.followers = userToUnfollow.followers.filter(
       id => id.toString() !== currentUser._id.toString()
     );
@@ -137,22 +131,18 @@ router.put('/:username', auth, async (req, res) => {
   try {
     const { bio, profilePic } = req.body;
 
-    // Get the authenticated user from token
     const user = await User.findById(req.user.id);
     if (!user) return res.status(404).json({ error: 'User not found' });
 
-    // Ensure the user is updating their own profile
     if (user.username !== req.params.username) {
       return res.status(403).json({ error: 'You can only update your own profile' });
     }
 
-    // Update fields if provided
     if (bio !== undefined) user.bio = bio;
     if (profilePic !== undefined) user.profilePic = profilePic;
 
     await user.save();
 
-    // Return the updated user without password
     const updatedUser = await User.findById(user._id).select('-password');
     res.json(updatedUser);
   } catch (err) {

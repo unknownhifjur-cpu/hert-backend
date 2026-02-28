@@ -4,62 +4,18 @@ const ChatMessage = require('../models/ChatMessage');
 const User = require('../models/User');
 const auth = require('../middleware/auth');
 
-// @route   GET /api/chat/:userId
-// @desc    Get conversation between current user and another user
+// ---------- Specific routes first ----------
+
+// @route   GET /api/chat/unread
+// @desc    Get total number of unread messages for current user
 // @access  Private
-router.get('/:userId', auth, async (req, res) => {
+router.get('/unread', auth, async (req, res) => {
   try {
-    const otherUser = await User.findById(req.params.userId);
-    if (!otherUser) return res.status(404).json({ error: 'User not found' });
-
-    const messages = await ChatMessage.find({
-      $or: [
-        { sender: req.userId, receiver: req.params.userId },
-        { sender: req.params.userId, receiver: req.userId }
-      ]
-    })
-      .sort({ createdAt: 1 })
-      .populate('sender', 'username profilePic')
-      .populate('receiver', 'username profilePic')
-      .populate('replyTo', 'message sender'); // populate the replied-to message
-
-    res.json(messages);
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Server error' });
-  }
-});
-
-// @route   POST /api/chat
-// @desc    Send a message (fallback if socket fails)
-// @access  Private
-router.post('/', auth, async (req, res) => {
-  try {
-    const { receiverId, message, replyTo } = req.body;
-    if (!receiverId || !message || message.trim() === '') {
-      return res.status(400).json({ error: 'Receiver and message are required' });
-    }
-
-    const receiver = await User.findById(receiverId);
-    if (!receiver) return res.status(404).json({ error: 'Receiver not found' });
-
-    const newMessage = new ChatMessage({
-      sender: req.userId,
-      receiver: receiverId,
-      message: message.trim(),
-      replyTo: replyTo || null,
-      read: false,
-      edited: false
+    const count = await ChatMessage.countDocuments({
+      receiver: req.userId,
+      read: false
     });
-
-    await newMessage.save();
-    await newMessage.populate('sender', 'username profilePic');
-    await newMessage.populate('receiver', 'username profilePic');
-    if (newMessage.replyTo) {
-      await newMessage.populate('replyTo', 'message sender');
-    }
-
-    res.json(newMessage);
+    res.json({ count });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Server error' });
@@ -109,7 +65,6 @@ router.put('/read/:senderId', auth, async (req, res) => {
       { $set: { read: true } }
     );
 
-    // If any messages were updated, notify the sender via socket
     if (result.modifiedCount > 0) {
       const io = req.app.get('socketio');
       io.to(req.params.senderId).emit('messages-read', {
@@ -119,22 +74,6 @@ router.put('/read/:senderId', auth, async (req, res) => {
     }
 
     res.json({ success: true });
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Server error' });
-  }
-});
-
-// @route   GET /api/chat/unread
-// @desc    Get total number of unread messages for current user
-// @access  Private
-router.get('/unread', auth, async (req, res) => {
-  try {
-    const count = await ChatMessage.countDocuments({
-      receiver: req.userId,
-      read: false
-    });
-    res.json({ count });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Server error' });
@@ -158,7 +97,6 @@ router.put('/:messageId', auth, async (req, res) => {
       return res.status(403).json({ error: 'Not authorized' });
     }
 
-    // Optional: restrict editing to within 5 minutes
     const now = new Date();
     const msgTime = new Date(msg.createdAt);
     const diffMinutes = (now - msgTime) / (1000 * 60);
@@ -209,6 +147,70 @@ router.delete('/conversation/:userId', auth, async (req, res) => {
       ]
     });
     res.json({ success: true });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// ---------- Parameterized routes last ----------
+
+// @route   POST /api/chat
+// @desc    Send a message (fallback if socket fails)
+// @access  Private
+router.post('/', auth, async (req, res) => {
+  try {
+    const { receiverId, message, replyTo } = req.body;
+    if (!receiverId || !message || message.trim() === '') {
+      return res.status(400).json({ error: 'Receiver and message are required' });
+    }
+
+    const receiver = await User.findById(receiverId);
+    if (!receiver) return res.status(404).json({ error: 'Receiver not found' });
+
+    const newMessage = new ChatMessage({
+      sender: req.userId,
+      receiver: receiverId,
+      message: message.trim(),
+      replyTo: replyTo || null,
+      read: false,
+      edited: false
+    });
+
+    await newMessage.save();
+    await newMessage.populate('sender', 'username profilePic');
+    await newMessage.populate('receiver', 'username profilePic');
+    if (newMessage.replyTo) {
+      await newMessage.populate('replyTo', 'message sender');
+    }
+
+    res.json(newMessage);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// @route   GET /api/chat/:userId
+// @desc    Get conversation between current user and another user
+// @access  Private
+router.get('/:userId', auth, async (req, res) => {
+  try {
+    const otherUser = await User.findById(req.params.userId);
+    if (!otherUser) return res.status(404).json({ error: 'User not found' });
+
+    const messages = await ChatMessage.find({
+      $or: [
+        { sender: req.userId, receiver: req.params.userId },
+        { sender: req.params.userId, receiver: req.userId }
+      ]
+    })
+      .sort({ createdAt: 1 })
+      .populate('sender', 'username profilePic')
+      .populate('receiver', 'username profilePic')
+      .populate('replyTo', 'message sender');
+
+    res.json(messages);
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Server error' });

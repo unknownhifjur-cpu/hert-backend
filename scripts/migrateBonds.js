@@ -35,10 +35,28 @@ async function migrateBonds() {
 
     console.log(`Creating bonds for ${pairs.size} unique couples.`);
     for (const pair of pairs.values()) {
+      // Fetch both users to get their bondStartDate
+      const [user1, user2] = await Promise.all([
+        User.findById(pair.user1),
+        User.findById(pair.user2)
+      ]);
+      
+      // Determine start date: use the earliest non‑null date
+      let startDate = null;
+      if (user1?.bondStartDate && user2?.bondStartDate) {
+        startDate = new Date(Math.min(new Date(user1.bondStartDate), new Date(user2.bondStartDate)));
+      } else if (user1?.bondStartDate) {
+        startDate = user1.bondStartDate;
+      } else if (user2?.bondStartDate) {
+        startDate = user2.bondStartDate;
+      } else {
+        startDate = new Date(); // fallback to today
+      }
+      
       const bond = new Bond({
         users: [pair.user1, pair.user2],
         bondData: {
-          startDate: new Date().toISOString().split('T')[0], // you may want to use existing bondStartDate
+          startDate: startDate.toISOString().split('T')[0],
           bondStatus: 'Strong',
         }
       });
@@ -47,7 +65,7 @@ async function migrateBonds() {
         { _id: { $in: [pair.user1, pair.user2] } },
         { $set: { bondId: bond._id } }
       );
-      console.log(`✅ Bond created for users ${pair.user1} and ${pair.user2}`);
+      console.log(`✅ Bond created for users ${pair.user1} and ${pair.user2} with start date ${startDate.toISOString().split('T')[0]}`);
     }
 
     console.log('🎉 Migration complete.');

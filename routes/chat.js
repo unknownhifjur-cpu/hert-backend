@@ -3,6 +3,7 @@ const router = express.Router();
 const ChatMessage = require('../models/ChatMessage');
 const User = require('../models/User');
 const auth = require('../middleware/auth');
+const sendPushNotification = require('../utils/sendPushNotification'); // added
 
 // ---------- Specific routes first ----------
 
@@ -183,6 +184,14 @@ router.post('/', auth, async (req, res) => {
     if (newMessage.replyTo) {
       await newMessage.populate('replyTo', 'message sender');
     }
+
+    // Send push notification to the receiver
+    const sender = await User.findById(req.userId).select('username');
+    await sendPushNotification(receiverId, {
+      title: '💬 New Message',
+      body: `${sender.username}: ${message.substring(0, 50)}${message.length > 50 ? '...' : ''}`,
+      data: { url: `/chat/${req.userId}` } // deep link to conversation with sender
+    });
 
     res.json(newMessage);
   } catch (err) {

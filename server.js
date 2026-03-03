@@ -77,6 +77,7 @@ const User = require('./models/User');
 const ChatMessage = require('./models/ChatMessage');
 const auth = require('./middleware/auth');
 const jwt = require('jsonwebtoken');
+const sendPushNotification = require('./utils/sendPushNotification'); // <-- added
 
 // Make io accessible to routes
 app.set('socketio', io);
@@ -136,6 +137,18 @@ io.on('connection', (socket) => {
 
       // Emit to the conversation room
       io.to(room).emit('new-message', newMessage);
+
+      // Send push notification to the receiver
+      try {
+        const sender = await User.findById(socket.userId).select('username');
+        await sendPushNotification(receiverId, {
+          title: '💬 New Message',
+          body: `${sender.username}: ${message.substring(0, 50)}${message.length > 50 ? '...' : ''}`,
+          data: { url: `/chat/${socket.userId}` }
+        });
+      } catch (pushErr) {
+        console.error('Push notification error:', pushErr);
+      }
     } catch (err) {
       console.error('Socket send error:', err);
     }
@@ -162,6 +175,7 @@ app.use('/api/photos', require('./routes/photos'));
 app.use('/api/bond', require('./routes/bond'));
 app.use('/api/notifications', require('./routes/notifications'));
 app.use('/api/chat', require('./routes/chat'));
+app.use('/api/push', require('./routes/push')); // <-- already present
 
 // Simple test route
 app.get("/", (req, res) => {

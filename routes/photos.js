@@ -1,8 +1,10 @@
 const express = require('express');
 const router = express.Router();
 const Photo = require('../models/Photo');
-const Notification = require('../models/Notification'); // <-- added
+const User = require('../models/User');               // added for sender info
+const Notification = require('../models/Notification');
 const auth = require('../middleware/auth');
+const sendPushNotification = require('../utils/sendPushNotification'); // added
 
 // @route   GET /api/photos/:id
 // @desc    Get a single photo by ID
@@ -38,13 +40,19 @@ router.post('/:id/like', auth, async (req, res) => {
       photo.likes = photo.likes.filter(id => id.toString() !== userId.toString());
     } else {
       photo.likes.push(userId);
-      // Create notification if the liker is not the owner
+      // Create notification and send push if liker is not the owner
       if (photo.user.toString() !== userId.toString()) {
         await Notification.create({
           recipient: photo.user,
           sender: userId,
           type: 'like',
           photo: photo._id
+        });
+        const sender = await User.findById(userId).select('username');
+        await sendPushNotification(photo.user, {
+          title: '❤️ New Like',
+          body: `${sender.username} liked your photo`,
+          data: { url: `/photo/${photo._id}` }
         });
       }
     }
@@ -82,17 +90,21 @@ router.post('/:id/comment', auth, async (req, res) => {
     photo.comments.push(comment);
     await photo.save();
 
-    // Populate the user info for the new comment
     await photo.populate('comments.user', 'username profilePic');
     const newComment = photo.comments[photo.comments.length - 1];
 
-    // Create notification if the commenter is not the owner
     if (photo.user.toString() !== req.userId.toString()) {
       await Notification.create({
         recipient: photo.user,
         sender: req.userId,
         type: 'comment',
         photo: photo._id
+      });
+      const sender = await User.findById(req.userId).select('username');
+      await sendPushNotification(photo.user, {
+        title: '💬 New Comment',
+        body: `${sender.username} commented: "${text.substring(0, 30)}${text.length > 30 ? '...' : ''}"`,
+        data: { url: `/photo/${photo._id}` }
       });
     }
 

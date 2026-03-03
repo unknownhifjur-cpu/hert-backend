@@ -4,6 +4,7 @@ const User = require('../models/User');
 const Bond = require('../models/Bond');
 const Notification = require('../models/Notification');
 const auth = require('../middleware/auth');
+const sendPushNotification = require('../utils/sendPushNotification'); // <-- added
 
 // @route   GET /api/bond/status
 // @desc    Get current user's bond status
@@ -59,6 +60,13 @@ router.post('/request/:username', auth, async (req, res) => {
       recipient: target._id,
       sender: currentUser._id,
       type: 'bond_request'
+    });
+
+    // Send push notification to the target
+    await sendPushNotification(target._id, {
+      title: '💌 Love Request',
+      body: `${currentUser.username} sent you a love request`,
+      data: { url: '/bond' }
     });
 
     res.json({ message: 'Love request sent' });
@@ -131,6 +139,18 @@ router.post('/accept/:userId', auth, async (req, res) => {
       type: 'bond_accept'
     });
 
+    // Send push notifications to both users
+    await sendPushNotification(requester._id, {
+      title: '💖 Request Accepted',
+      body: `${currentUser.username} accepted your love request!`,
+      data: { url: '/bond' }
+    });
+    await sendPushNotification(currentUser._id, {
+      title: '💖 Bond Created',
+      body: `You and ${requester.username} are now bonded!`,
+      data: { url: '/bond' }
+    });
+
     res.json({ message: 'Bond created', partner: requester.username });
   } catch (err) {
     console.error(err);
@@ -167,6 +187,13 @@ router.post('/reject/:userId', auth, async (req, res) => {
       type: 'bond_request'
     });
 
+    // Optionally send a push notification to the requester (optional)
+    // await sendPushNotification(requester._id, {
+    //   title: '💔 Request Rejected',
+    //   body: `${currentUser.username} declined your love request.`,
+    //   data: { url: '/bond' }
+    // });
+
     res.json({ message: 'Request rejected' });
   } catch (err) {
     console.error(err);
@@ -175,7 +202,6 @@ router.post('/reject/:userId', auth, async (req, res) => {
 });
 
 // ========== SHARED BOND DATA ENDPOINTS ==========
-// (unchanged, omitted for brevity – keep as is)
-// ...
+// ... (keep as is) ...
 
 module.exports = router;

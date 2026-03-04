@@ -3,7 +3,7 @@ const router = express.Router();
 const ChatMessage = require('../models/ChatMessage');
 const User = require('../models/User');
 const auth = require('../middleware/auth');
-const sendPushNotification = require('../utils/sendPushNotification'); // added
+const sendPushNotification = require('../utils/sendPushNotification');
 
 // ---------- Specific routes first ----------
 
@@ -37,7 +37,12 @@ router.get('/conversations/list', auth, async (req, res) => {
 
     const contactsMap = new Map();
     messages.forEach(msg => {
+      // Skip if sender or receiver is null (user deleted)
+      if (!msg.sender || !msg.receiver) return;
+
       const otherUser = msg.sender._id.toString() === req.userId ? msg.receiver : msg.sender;
+      if (!otherUser) return;
+
       const key = otherUser._id.toString();
       if (!contactsMap.has(key)) {
         contactsMap.set(key, {
@@ -51,7 +56,7 @@ router.get('/conversations/list', auth, async (req, res) => {
 
     res.json(Array.from(contactsMap.values()));
   } catch (err) {
-    console.error(err);
+    console.error('Error in /conversations/list:', err);
     res.status(500).json({ error: 'Server error' });
   }
 });
@@ -190,7 +195,7 @@ router.post('/', auth, async (req, res) => {
     await sendPushNotification(receiverId, {
       title: '💬 New Message',
       body: `${sender.username}: ${message.substring(0, 50)}${message.length > 50 ? '...' : ''}`,
-      data: { url: `/chat/${req.userId}` } // deep link to conversation with sender
+      data: { url: `/chat/${req.userId}` }
     });
 
     res.json(newMessage);

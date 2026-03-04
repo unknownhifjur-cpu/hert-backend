@@ -175,7 +175,6 @@ app.use('/api/photos', require('./routes/photos'));
 app.use('/api/notifications', require('./routes/notifications'));
 app.use('/api/chat', require('./routes/chat'));
 app.use('/api/push', require('./routes/push')); // <-- already present
-app.use('/api/bond', require('./routes/bond'));
 
 // Simple test route
 app.get("/", (req, res) => {

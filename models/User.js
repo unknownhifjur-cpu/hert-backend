@@ -36,21 +36,6 @@ const UserSchema = new mongoose.Schema({
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User'
   }],
-   bondStatus: {
-    type: String,
-    enum: ['none', 'pending', 'bonded'],
-    default: 'none'
-  },
-  partner: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'User',
-    default: null
-  },
-  bondId: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'Bond',      // we'll create this model later if needed; you can omit for now
-    default: null
-  },
   sentRequests: [{
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User'

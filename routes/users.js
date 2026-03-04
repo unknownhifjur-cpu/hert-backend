@@ -2,9 +2,9 @@ const express = require('express');
 const router = express.Router();
 const User = require('../models/User');
 const Photo = require('../models/Photo');
-const Notification = require('../models/Notification'); // for follow notifications
+const Notification = require('../models/Notification');
 const auth = require('../middleware/auth');
-const sendPushNotification = require('../utils/sendPushNotification'); // added
+const sendPushNotification = require('../utils/sendPushNotification');
 
 // @route   GET /api/users/id/:userId
 // @desc    Get user by ID
@@ -24,14 +24,15 @@ router.get('/id/:userId', async (req, res) => {
 });
 
 // @route   GET /api/users/search
-// @desc    Search users by username
+// @desc    Search users by username (excluding current user)
 // @access  Private
 router.get('/search', auth, async (req, res) => {
   try {
     const { q } = req.query;
     if (!q || q.length < 2) return res.json([]);
     const users = await User.find({
-      username: { $regex: q, $options: 'i' }
+      username: { $regex: q, $options: 'i' },
+      _id: { $ne: req.userId }
     }).select('username profilePic').limit(10);
     res.json(users);
   } catch (err) {
@@ -133,7 +134,6 @@ router.post('/:username/follow', auth, async (req, res) => {
       type: 'follow',
     });
 
-    // Send push notification to the user being followed
     await sendPushNotification(userToFollow._id, {
       title: '👤 New Follower',
       body: `${currentUser.username} started following you`,
@@ -171,8 +171,6 @@ router.post('/:username/unfollow', auth, async (req, res) => {
 
     await currentUser.save();
     await userToUnfollow.save();
-
-    // No push notification for unfollow (optional, can be added if desired)
 
     res.json({ message: 'Unfollowed successfully' });
   } catch (err) {

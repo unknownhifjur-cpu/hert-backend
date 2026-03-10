@@ -213,18 +213,29 @@ router.get('/:userId', auth, async (req, res) => {
     const otherUser = await User.findById(req.params.userId);
     if (!otherUser) return res.status(404).json({ error: 'User not found' });
 
-    const messages = await ChatMessage.find({
+    const query = {
       $or: [
         { sender: req.userId, receiver: req.params.userId },
         { sender: req.params.userId, receiver: req.userId }
       ]
-    })
-      .sort({ createdAt: 1 })
+    };
+
+    // Implement pagination with 'before' parameter
+    if (req.query.before) {
+      query._id = { $lt: req.query.before };
+    }
+
+    const limit = parseInt(req.query.limit) || 50;
+
+    const messages = await ChatMessage.find(query)
+      .sort({ createdAt: -1 })
+      .limit(limit)
       .populate('sender', 'username profilePic')
-      .populate('receiver', 'username profilePic')
+      .populate('receivecr', 'username profilePic')
       .populate('replyTo', 'message sender');
 
-    res.json(messages);
+    // Return messages in chronological order (oldest first)
+    res.json(messages.reverse());
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Server error' });

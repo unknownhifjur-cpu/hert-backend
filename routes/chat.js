@@ -231,7 +231,7 @@ router.get('/:userId', auth, async (req, res) => {
       .sort({ createdAt: -1 })
       .limit(limit)
       .populate('sender', 'username profilePic')
-      .populate('receivecr', 'username profilePic')
+      .populate('receiver', 'username profilePic')
       .populate('replyTo', 'message sender');
 
     // Return messages in chronological order (oldest first)
